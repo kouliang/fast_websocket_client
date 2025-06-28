@@ -6,7 +6,10 @@ use tokio::time::{Duration, sleep};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), fast_websocket_client::WebSocketClientError> {
-    let ws = WebSocket::new_with_proxy("wss://stream.binance.com:9443/ws/bnbbtc@depth", "127.0.0.1:7890").await?;
+
+    let ws = WebSocket::new_with_proxy("wss://stream.binance.com:9443/ws/bnbbtc@depth", "127.0.0.1:7890", |_| async {
+        println!("[OPEN]");
+    }).await?;
 
     ws.on_close(|_| async move {
         println!("[CLOSE] WebSocket connection closed.");
@@ -18,12 +21,7 @@ async fn main() -> Result<(), fast_websocket_client::WebSocketClientError> {
     .await;
 
     ws.on_error(|message| async move {
-        println!("[error] {}", message);
-    })
-    .await;
-
-    ws.on_open(|_| async move {
-        println!("[open]");
+        println!("[ERROR] {}", message);
     })
     .await;
 

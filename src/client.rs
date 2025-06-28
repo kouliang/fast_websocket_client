@@ -300,10 +300,14 @@ impl WebSocket {
         Self::connect(url).await
     }
 
-    pub async fn new_with_proxy(url: &str, proxy: &str) -> Result<Self, WebSocketClientError> {
+    pub async fn new_with_proxy<F, Fut>(url: &str, proxy: &str, on_open: F) -> Result<Self, WebSocketClientError> 
+    where
+        F: FnMut(()) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
         let mut builder = WebSocketBuilder::new();
         builder.options.proxy_addr(proxy);
-        builder.connect(url).await
+        builder.on_open(on_open).connect(url).await
     }
 
     /// Updates the client configuration at runtime.
