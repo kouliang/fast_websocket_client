@@ -1,8 +1,7 @@
 // try this example with
-// `cargo run --example wss_client`
+// `cargo run --example order_book`
 
 use fast_websocket_client::WebSocket;
-use tokio::time::{Duration, sleep};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), fast_websocket_client::WebSocketClientError> {
@@ -11,32 +10,14 @@ async fn main() -> Result<(), fast_websocket_client::WebSocketClientError> {
         println!("[OPEN]");
     }).await?;
 
-    ws.on_close(|_| async move {
-        println!("[CLOSE] WebSocket connection closed.");
-    })
-    .await;
-    ws.on_message(|message| async move {
-        println!("[MESSAGE] {}", message);
-    })
-    .await;
-
     ws.on_error(|message| async move {
         println!("[ERROR] {}", message);
-    })
-    .await;
+    }).await;
 
-    sleep(Duration::from_secs(10)).await;
-    // for i in 1..5 {
-    //     let message = format!("#{}", i);
-    //     if let Err(e) = ws.send(&message).await {
-    //         eprintln!("[ERROR] Send error: {:?}", e);
-    //         break;
-    //     }
-    //     println!("[SEND] {}", message);
-    //     sleep(Duration::from_secs(5)).await;
-    // }
+    ws.on_message(|message| async move {
+        println!("[MESSAGE] {}", message);
+    }).await;
 
-    ws.close().await;
-    ws.await_shutdown().await;
+    let _ = ws.task_handle.await;
     Ok(())
 }

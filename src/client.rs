@@ -254,7 +254,7 @@ enum ClientCommand {
 
 /// Represents a WebSocket client instance.
 pub struct WebSocket {
-    task_handle: JoinHandle<()>,
+    pub task_handle: JoinHandle<()>,
     command_tx: mpsc::UnboundedSender<ClientCommand>,
     shutdown_notifier: oneshot::Receiver<()>,
 }
