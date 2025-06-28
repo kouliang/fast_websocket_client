@@ -161,6 +161,7 @@ pub struct ConnectionInitOptions {
     writev_threshold: usize,
     auto_apply_mask: bool,
     custom_headers: HeaderMap,
+    proxy_addr: String,
 }
 
 impl Default for ConnectionInitOptions {
@@ -172,6 +173,7 @@ impl Default for ConnectionInitOptions {
             writev_threshold: 1024,
             auto_apply_mask: true,
             custom_headers: HeaderMap::new(),
+            proxy_addr: String::new(),
         }
     }
 }
@@ -227,6 +229,11 @@ impl ConnectionInitOptions {
     /// **Default**: empty
     pub fn custom_headers(mut self, headers: HeaderMap) -> Self {
         self.custom_headers = headers;
+        self
+    }
+
+    pub fn proxy_addr(&mut self, addr: &str) -> &mut Self {
+        self.proxy_addr = addr.to_string();
         self
     }
 }
@@ -291,6 +298,12 @@ impl WebSocket {
     /// ```
     pub async fn new(url: &str) -> Result<Self, WebSocketClientError> {
         Self::connect(url).await
+    }
+
+    pub async fn new_with_proxy(url: &str, proxy: &str) -> Result<Self, WebSocketClientError> {
+        let mut builder = WebSocketBuilder::new();
+        builder.options.proxy_addr(proxy);
+        builder.connect(url).await
     }
 
     /// Updates the client configuration at runtime.
@@ -575,6 +588,10 @@ async fn try_connect(
         .set_auto_close(options.auto_close)
         .set_max_message_size(options.max_message_size)
         .set_auto_apply_mask(options.auto_apply_mask);
+
+    if !options.proxy_addr.is_empty() {
+        offline.set_proxy_addr(options.proxy_addr.as_str());
+    }
 
     for (k, v) in options.custom_headers.iter() {
         offline.add_header(k.clone(), v.clone());

@@ -12,6 +12,7 @@ pub struct Offline {
     writev_threshold: usize,
     auto_apply_mask: bool,
     custom_headers: crate::HeaderMap,
+    proxy_addr: String,
 }
 
 impl Default for Offline {
@@ -31,6 +32,7 @@ impl Offline {
             writev_threshold: 1024,
             auto_apply_mask: true,
             custom_headers: crate::HeaderMap::new(),
+            proxy_addr: String::new(),
         }
     }
 
@@ -110,6 +112,11 @@ impl Offline {
         self
     }
 
+    pub fn set_proxy_addr(&mut self, addr: &str) -> &mut Self {
+        self.proxy_addr = addr.to_string();
+        self
+    }
+
     pub async fn connect(
         &mut self,
         url: &str,
@@ -118,7 +125,13 @@ impl Offline {
         let host = url.host_str().expect("invalid host").to_owned();
         let port = url.port_or_known_default().expect("the port is unknown");
         let address = format!("{host}:{port}");
-        let tcp_stream = tokio::net::TcpStream::connect(&address).await?;
+
+        let tcp_stream: tokio::net::TcpStream;
+        if !self.proxy_addr.is_empty() {
+            tcp_stream = tokio_socks::tcp::Socks5Stream::connect(self.proxy_addr.as_str(), address.clone()).await?.into_inner();
+        } else {
+            tcp_stream = tokio::net::TcpStream::connect(&address).await?;
+        }
 
         let mut req_builder = hyper::Request::builder()
             .method("GET")
