@@ -1,3 +1,14 @@
+# 更新说明
+1. 新增 WebSocket::new_with_proxy 函数支持使用代理连接。
+   同时提供 on_open 参数支持 on_open 回调。
+
+2. OrderBook 功能在 examples/order_book.rs 中。
+
+3. 比较 examples 两种实现的优缺点：
+    > callback 方式属于比较高级的封装，优点是代码简洁
+    > base_client 方式需要手动解析消息，适合更底层的定制开发
+
+
 # fast_websocket_client
 
 [![Crates.io](https://img.shields.io/crates/v/fast_websocket_client)](https://crates.io/crates/fast_websocket_client)
