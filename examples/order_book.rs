@@ -98,11 +98,11 @@ async fn get_order_book(update_id: u64) -> Result<OrderBook> {
         .text().await?;
 
     let mut order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
-    while order_book.lastUpdateId <= update_id {
-        let body: String = reqwest::get(request_url).await?
-        .text().await?;
-        order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
-    }
+    // while order_book.lastUpdateId <= update_id {
+    //     let body: String = reqwest::get(request_url).await?
+    //     .text().await?;
+    //     order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
+    // }
 
     Ok(order_book)
 }
