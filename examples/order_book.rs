@@ -1,5 +1,6 @@
 // try this example with
 // `cargo run --example order_book`
+// https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/web-socket-streams#%E5%A6%82%E4%BD%95%E6%AD%A3%E7%A1%AE%E5%9C%A8%E6%9C%AC%E5%9C%B0%E7%BB%B4%E6%8A%A4%E4%B8%80%E4%B8%AAorder-book%E5%89%AF%E6%9C%AC
 
 use fast_websocket_client::WebSocket;
 use serde::{Deserialize, Serialize};
@@ -67,7 +68,7 @@ async fn update_order_book(update: OrderBookUpdate, order_book:Arc<Mutex<OrderBo
     // 1. 不满足以下条件说明快照损坏需要重新构建
     //    lastUpdateId   U<lastUpdateId+1>   u
     let mut order_book_guard = order_book.lock().await;
-    if update.U != order_book_guard.lastUpdateId+1 {
+    if update.U > order_book_guard.lastUpdateId+1 {
         println!("reset order book ❌❌❌❌❌❌❌❌❌❌❌");
         let new_order_book = get_order_book(update.U).await?;
         *order_book_guard = new_order_book;
@@ -75,8 +76,7 @@ async fn update_order_book(update: OrderBookUpdate, order_book:Arc<Mutex<OrderBo
     println!("order_book lastUpdateId: {}", order_book_guard.lastUpdateId);
     
     // 2. 满足一下条件时更新快照
-    //    u > lastUpdateId
-    if update.u > order_book_guard.lastUpdateId {
+    if update.U == order_book_guard.lastUpdateId+1 && update.u > order_book_guard.lastUpdateId {
         println!("do update ✅✅✅✅✅✅✅✅");
         
         // 将order book更新 ID 设置为处理过event中的最后一次更新 ID (u)。
@@ -87,6 +87,8 @@ async fn update_order_book(update: OrderBookUpdate, order_book:Arc<Mutex<OrderBo
 
         // 如果数量为零，则从order book中删除此价位。
         // TODO
+    } else {
+        println!("waiting for the next update ... ");
     }
     Ok(())
 }
