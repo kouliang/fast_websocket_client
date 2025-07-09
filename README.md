@@ -1,126 +1,229 @@
-# 更新说明
-1. 新增 WebSocket::new_with_proxy 函数支持使用代理连接。
-   同时提供 on_open 参数支持 on_open 回调。
+# OKX API v5 账户余额查询示例
 
-2. OrderBook 功能在 examples/order_book.rs 中。
+本项目演示如何使用 OKX API v5 查询账户余额。根据 [OKX API v5 官方文档](https://www.okx.com/docs-v5/zh/#overview-rest-authentication) 实现。
 
-3. 比较 examples 两种实现的优缺点：
-    > callback 方式属于比较高级的封装，优点是代码简洁
-    > base_client 方式需要手动解析消息，适合更底层的定制开发
+## 功能特性
 
+- ✅ 完整的 OKX API v5 认证实现
+- ✅ 符合 HMAC SHA256 签名算法
+- ✅ 支持查询所有币种余额
+- ✅ 支持查询特定币种余额  
+- ✅ 安全的环境变量配置
+- ✅ 友好的输出格式化
+- ✅ 完善的错误处理
 
-# fast_websocket_client
+## 文件说明
 
-[![Crates.io](https://img.shields.io/crates/v/fast_websocket_client)](https://crates.io/crates/fast_websocket_client)
-[![docs.rs](https://docs.rs/fast_websocket_client/badge.svg)](https://docs.rs/fast_websocket_client)
-
-**A blazing-fast, async-native WebSocket client for Rust**, built on top of [`fastwebsockets`](https://github.com/denoland/fastwebsockets) and [`tokio`](https://tokio.rs).
-
-Supports two modes of operation:
-- 🔁 **High-level callback-based client** for ergonomic event-driven use.
-- ⚙️ **Low-level direct API** for fine-tuned control with minimal dependencies.
-
-Quick Example: [examples/async_callback_client.rs](https://github.com/Osteoporosis/fast_websocket_client/blob/main/examples/async_callback_client.rs)
-
-## 📦 Features
-
-- Async/await support via `tokio`
-- Built-in reconnection and ping loop
-- Optional callback-driven lifecycle management
-- Custom HTTP headers for handshake (e.g., Authorization)
-
-## 🛠 Installation
-
-```bash
-cargo add fast_websocket_client
+```
+├── okx_account_balance.py    # 基础版本（硬编码API密钥）
+├── okx_balance_secure.py     # 安全版本（使用环境变量）
+├── requirements.txt          # 依赖包列表
+├── .env.example             # 环境变量示例文件
+└── README.md                # 说明文档
 ```
 
-## 🔁 High-Level Callback API
+## 快速开始
 
-An ergonomic, JavaScript-like API with built-in reconnect, ping, and lifecycle hooks.
+### 1. 安装依赖
 
-```rust
-// try this example with
-// `cargo run --example wss_client`
+```bash
+pip install -r requirements.txt
+```
 
-use tokio::time::{Duration, sleep};
-use fast_websocket_client::WebSocket;
+### 2. 获取 OKX API 凭据
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<(), fast_websocket_client::WebSocketClientError> {
-    let ws = WebSocket::new("wss://echo.websocket.org").await?;
+1. 登录 [OKX 官网](https://www.okx.com)
+2. 进入 **个人中心** > **API**
+3. 创建新的 API Key，记录以下信息：
+   - API Key
+   - Secret Key  
+   - Passphrase
 
-    ws.on_close(|_| async move {
-        println!("[CLOSE] WebSocket connection closed.");
-    })
-    .await;
-    ws.on_message(|message| async move {
-        println!("[MESSAGE] {}", message);
-    })
-    .await;
+⚠️ **重要提醒**：
+- 确保为 API Key 设置合适的权限（只需要"读取"权限即可查询余额）
+- 如有需要，可以绑定 IP 地址以增强安全性
+- 切勿与他人分享您的 API 凭据
 
-    sleep(Duration::from_secs(1)).await;
-    for i in 1..5 {
-        let message = format!("#{}", i);
-        if let Err(e) = ws.send(&message).await {
-            eprintln!("[ERROR] Send error: {:?}", e);
-            break;
+### 3. 配置方式
+
+#### 方式一：使用环境变量（推荐）
+
+1. 复制环境变量示例文件：
+```bash
+cp .env.example .env
+```
+
+2. 编辑 `.env` 文件，填入您的真实 API 凭据：
+```bash
+OKX_API_KEY=your_real_api_key
+OKX_SECRET_KEY=your_real_secret_key
+OKX_PASSPHRASE=your_real_passphrase
+OKX_SANDBOX=false
+```
+
+3. 加载环境变量：
+```bash
+# Linux/Mac
+source .env
+
+# Windows PowerShell
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.split('=')
+    Set-Content env:\$name $value
+}
+```
+
+4. 运行安全版本：
+```bash
+python okx_balance_secure.py
+```
+
+#### 方式二：直接在代码中配置
+
+1. 编辑 `okx_account_balance.py` 文件
+2. 将以下占位符替换为您的真实凭据：
+```python
+API_KEY = "your_real_api_key"
+SECRET_KEY = "your_real_secret_key"  
+PASSPHRASE = "your_real_passphrase"
+```
+
+3. 运行基础版本：
+```bash
+python okx_account_balance.py
+```
+
+## API 说明
+
+### 认证机制
+
+根据 OKX API v5 文档，所有私有接口都需要进行签名认证：
+
+1. **请求头要求**：
+   - `OK-ACCESS-KEY`: API 密钥
+   - `OK-ACCESS-SIGN`: 签名
+   - `OK-ACCESS-TIMESTAMP`: UTC 时间戳
+   - `OK-ACCESS-PASSPHRASE`: 密码短语
+
+2. **签名算法**：
+   ```
+   signature = base64.encode(hmac_sha256(timestamp + method + requestPath + body, secretKey))
+   ```
+
+### API 端点
+
+- **查询账户余额**: `GET /api/v5/account/balance`
+- **查询特定币种**: `GET /api/v5/account/balance?ccy=BTC`
+
+### 响应格式
+
+成功响应示例：
+```json
+{
+  "code": "0",
+  "msg": "",
+  "data": [
+    {
+      "details": [
+        {
+          "ccy": "BTC",
+          "cashBal": "0.1",
+          "availBal": "0.08", 
+          "frozenBal": "0.02"
         }
-        println!("[SEND] {}", message);
-        sleep(Duration::from_secs(5)).await;
+      ]
     }
-
-    ws.close().await;
-    ws.await_shutdown().await;
-    Ok(())
+  ]
 }
 ```
 
-## 🧵 Low-Level API
+## 使用示例
 
-```rust
-use fast_websocket_client::{connect, OpCode};
+### 查询所有币种余额
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut client = connect("wss://echo.websocket.org").await?;
+```python
+from okx_balance_secure import OKXAPIClient, load_credentials
 
-    client.send_string("Hello, WebSocket!").await?;
+# 加载凭据
+api_key, secret_key, passphrase, is_sandbox = load_credentials()
 
-    let frame = client.receive_frame().await?;
-    if frame.opcode == OpCode::Text {
-        println!("Received: {}", String::from_utf8_lossy(&frame.payload));
-    }
+# 创建客户端
+client = OKXAPIClient(api_key, secret_key, passphrase, is_sandbox)
 
-    client.send_close("bye").await?;
-    Ok(())
-}
+# 查询余额
+response = client.get_account_balance()
+client.format_balance_response(response)
 ```
 
-## 🧪 Running the Example
+### 查询特定币种余额
 
-Clone the repo and run:
-
-```bash
-cargo run --example wss_client
+```python
+# 查询 BTC 余额
+btc_response = client.get_account_balance('BTC')
+client.format_balance_response(btc_response)
 ```
 
-## 🔄 Migration Guide (from `0.2.0`)
+## 输出示例
 
-| Old                                     | New                    |
-|-----------------------------------------|------------------------|
-| `client::Offline`                       | `base_client::Offline` |
-| `client::Online`                        | `base_client::Online`  |
-| Runtime settings via `Online`'s methods | Must now be set before connect via `ConnectionInitOptions`.<br>Changes to the running `WebSocket` take effect on the next (re)connection. |
+```
+🚀 OKX API v5 账户余额查询示例 (安全版本)
+============================================================
+🔧 环境: 生产
+📡 正在查询账户总余额...
+💰 账户余额信息
+============================================================
+   币种: USDT
+   ├─ 总余额: 1000.5
+   ├─ 可用余额: 900.5
+   └─ 冻结余额: 100.0
+   ------------------------------
+   币种: BTC  
+   ├─ 总余额: 0.1
+   ├─ 可用余额: 0.08
+   └─ 冻结余额: 0.02
+   ------------------------------
+✅ 查询完成！
+```
 
-**New users:** We recommend starting with the `WebSocket` API for best experience.
+## 错误处理
 
-## 📚 Documentation
+常见错误类型：
 
-- [docs.rs/fast_websocket_client](https://docs.rs/fast_websocket_client)
-- [Examples](https://github.com/Osteoporosis/fast_websocket_client/blob/main/examples/)
-- [fastwebsockets upstream](https://github.com/denoland/fastwebsockets)
+1. **认证失败**：
+   - 检查 API 凭据是否正确
+   - 确认 API Key 权限设置
+   - 验证时间戳是否准确
 
----
+2. **网络错误**：
+   - 检查网络连接
+   - 确认请求 URL 是否正确
 
-💡 Actively maintained – **contributions are welcome!**
+3. **参数错误**：
+   - 验证币种代码格式
+   - 检查请求参数
+
+## 安全建议
+
+- ❌ 不要在代码中硬编码 API 凭据
+- ✅ 使用环境变量存储敏感信息
+- ✅ 为 API Key 设置最小必要权限
+- ✅ 定期轮换 API 凭据
+- ✅ 使用 IP 白名单增强安全性
+- ✅ 不要将包含真实凭据的代码提交到版本控制系统
+
+## 相关链接
+
+- [OKX API v5 官方文档](https://www.okx.com/docs-v5/zh/)
+- [OKX 官网](https://www.okx.com)
+- [API 管理页面](https://www.okx.com/account/my-api)
+
+## 许可证
+
+本项目仅供学习和参考使用。使用时请遵守 OKX 的服务条款和 API 使用规范。
+
+## 免责声明
+
+本代码仅作为技术示例，不构成投资建议。使用时请确保：
+- 理解并接受 OKX 的服务条款
+- 妥善保管您的 API 凭据
+- 遵守相关法律法规
