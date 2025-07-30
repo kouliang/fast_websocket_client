@@ -36,7 +36,7 @@ lazy_static! {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     // 如果不使用代理，proxy传入空串
-    let ws = WebSocket::new_with_proxy("wss://stream.binance.com:9443/ws/bnbbtc@depth", "127.0.0.1:7890", |_| async {
+    let ws = WebSocket::new_with_proxy("wss://stream.binance.com:9443/ws/bnbbtc@depth", "", |_| async {
         println!("[OPEN]");
     }).await?;
 
@@ -70,13 +70,13 @@ async fn update_order_book(update: OrderBookUpdate, order_book:Arc<Mutex<OrderBo
     let mut order_book_guard = order_book.lock().await;
     if update.U > order_book_guard.lastUpdateId+1 {
         println!("reset order book ❌❌❌❌❌❌❌❌❌❌❌");
-        let new_order_book = get_order_book(update.U).await?;
+        let new_order_book = get_order_book().await?;
         *order_book_guard = new_order_book;
     }
     println!("order_book lastUpdateId: {}", order_book_guard.lastUpdateId);
     
     // 2. 满足一下条件时更新快照
-    if update.U == order_book_guard.lastUpdateId+1 && update.u > order_book_guard.lastUpdateId {
+    if update.U == order_book_guard.lastUpdateId+1 {
         println!("do update ✅✅✅✅✅✅✅✅");
         
         // 将order book更新 ID 设置为处理过event中的最后一次更新 ID (u)。
@@ -94,17 +94,12 @@ async fn update_order_book(update: OrderBookUpdate, order_book:Arc<Mutex<OrderBo
 }
 
 // 如果快照中的 lastUpdateId 一定大于 update_id
-async fn get_order_book(update_id: u64) -> Result<OrderBook> {
+async fn get_order_book() -> Result<OrderBook> {
     let request_url = "https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=5000";
     let body: String = reqwest::get(request_url).await?
         .text().await?;
 
-    let mut order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
-    // while order_book.lastUpdateId <= update_id {
-    //     let body: String = reqwest::get(request_url).await?
-    //     .text().await?;
-    //     order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
-    // }
-
+    let order_book = serde_json::from_str::<OrderBook>(&body).context("Failed to parse JSON")?;
+   
     Ok(order_book)
 }
